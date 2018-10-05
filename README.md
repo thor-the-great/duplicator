@@ -12,3 +12,5 @@ Features planned for future:
 - some smart way of filtering in source folder
 - two way synchronization, so if something is removed at source remove it at destination as well
 - GUI for setup
+
+Duplicator is written as a standalone Java application. You need some sort of JRE installed to use it.
