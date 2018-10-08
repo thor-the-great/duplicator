@@ -9,22 +9,44 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
+import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class SynchronizerAPI {
 
     final static String _ILLEGAL_CHARS_IN_FILENAME = "[\\\\/:*?\"<>|]";
+
+    private final static Logger _MAIN_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Main events");
+
+    private Logger ROLLING_LOGGER = null;
+
+    public SynchronizerAPI() {
+        try {
+            FileHandler fileLogHandler = new FileHandler("./duplicator.log", true);
+            fileLogHandler.setFormatter(new SimpleFormatter());
+            _MAIN_LOGGER.addHandler(fileLogHandler);
+        } catch (IOException e) {
+            Logger.getAnonymousLogger().log(Level.SEVERE, "Can't create file handler for logger. Exception is " + e);
+        }
+    }
 
     public void diffCopy(List<String> sourceFolderList, String destinationFolder) {
         try {
             //check for multiple identical source folders (lower level folder name can be the same => @destination it will be a problem, folders with be merged)
             Map<String, String> folderToUniqueFolderMap = getFolderMapping(sourceFolderList);
             HashMap<String, FileObject> destinationFolderObjectMap = getMapOfFilesInFolder(destinationFolder, folderToUniqueFolderMap);
+            ROLLING_LOGGER = null;
             for (String sourceFolder : sourceFolderList) {
                 HashMap<String, FileObject> sourceFolderObjectMap = getMapOfFilesInFolder(sourceFolder, true, folderToUniqueFolderMap);
-                Logger.getAnonymousLogger().log(Level.INFO, "Processing folder " + sourceFolder +" with " + sourceFolderObjectMap.size() +" object(s)");
+                String msg = "Processing folder " + sourceFolder + " with " + sourceFolderObjectMap.size() + " object(s)";
+                Logger.getAnonymousLogger().log(Level.INFO, msg);
+                _MAIN_LOGGER.log(Level.INFO, msg);
                 //iterate over source folder content, check if the same object in destination, if it's missing on not
                 //up-to-date copy it (overwrite if needed)
                 File sourceFolderFile = new File(sourceFolder);
@@ -33,23 +55,49 @@ public class SynchronizerAPI {
                     //check if file need to be copied
                     if (needCopyFile(sourceFolderObjectMap, destinationFolderObjectMap, sourceKey, folderToUniqueFolderMap)) {
                         try {
-                            File destinationFile = createDestinationFile(sourceFolderObjectMap, destinationFolderObjectMap, sourceKey,
+                            //create file object (not the file in fs)
+                            File destinationFile = createDestinationFileObject(sourceFolderObjectMap, destinationFolderObjectMap, sourceKey,
                                     sourceFolderFile, destinationFolderFile, folderToUniqueFolderMap);
+                            //do actual file copy operation
                             FileUtils.copyFile(sourceFolderObjectMap.get(sourceKey).getPath().toFile(), destinationFile);
                         } catch (IOException e) {
-                            System.err.println("Exception while copying file " + sourceKey + ". Exception is " + e);
-                            Logger.getAnonymousLogger().log(Level.SEVERE, "Exception while copying file " + sourceKey + ". Exception is " + e);
+                            String msg1 = new Timestamp(System.currentTimeMillis()) + " - Exception while copying file " + sourceKey + ". Exception is " + e;
+                            Logger.getAnonymousLogger().log(Level.SEVERE, msg1);
+                            _MAIN_LOGGER.log(Level.SEVERE, msg1);
                         }
-                        System.out.println("Copied file " + sourceKey);
+                        String msgCopied = "Copied file " + sourceKey;
+                        getRollingLogger().log(Level.INFO, msgCopied);
                     }
                 }
             }
         } catch (IOException e) {
-            Logger.getAnonymousLogger().log(Level.SEVERE, "Can't synchronize folders. Exception is " + e);
+            String msgEx = new Timestamp(System.currentTimeMillis()) + " - Can't synchronize folders. Exception is " + e;
+            Logger.getAnonymousLogger().log(Level.SEVERE, msgEx);
+            _MAIN_LOGGER.log(Level.SEVERE, msgEx);
             System.exit(1);
         }
     }
 
+    private Logger getRollingLogger() throws IOException {
+        if (ROLLING_LOGGER == null) {
+            ROLLING_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Rolling operations");
+            Date date = new Date();
+            DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd_hh_mm_ss");
+            String strDate = dateFormat.format(date);
+            FileHandler fileLogHandler = new FileHandler("./duplicator_" + strDate + ".log");
+            fileLogHandler.setFormatter(new SimpleFormatter());
+            ROLLING_LOGGER.addHandler(fileLogHandler);
+        }
+        return ROLLING_LOGGER;
+    }
+
+    /**
+     * Return map with path-to-folder - unique_folder_name. We need unique folder names for cases when several paths in
+     * source have same lower level folder, otherwise it will be the same folder name in destination
+     *
+     * @param sourceFolderList
+     * @return
+     */
     private Map<String, String> getFolderMapping(List<String> sourceFolderList) {
         Map<String, String> folderToUniqueFolderMap = new HashMap<>();
         Map<String, LinkedList<String>> folderToFolderPathsMap = new HashMap<>();
@@ -100,8 +148,8 @@ public class SynchronizerAPI {
         return false;
     }
 
-    File createDestinationFile(HashMap<String, FileObject> sourceMap, HashMap<String, FileObject> destMap,
-                               String sourceKey, File sourceFolderFile, File destinationFolderFile, Map<String, String> folderToUniqueFolderMap) {
+    File createDestinationFileObject(HashMap<String, FileObject> sourceMap, HashMap<String, FileObject> destMap,
+                                     String sourceKey, File sourceFolderFile, File destinationFolderFile, Map<String, String> folderToUniqueFolderMap) {
         if (destMap.containsKey(sourceKey))
             return destMap.get(sourceKey).getPath().toFile();
         else {
