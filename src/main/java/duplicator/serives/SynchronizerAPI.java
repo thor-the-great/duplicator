@@ -28,7 +28,7 @@ public class SynchronizerAPI {
 
     public SynchronizerAPI() {
         try {
-            FileHandler fileLogHandler = new FileHandler("./duplicator.log", true);
+            FileHandler fileLogHandler = new FileHandler("./logs/duplicator.log", true);
             fileLogHandler.setFormatter(new SimpleFormatter());
             _MAIN_LOGGER.addHandler(fileLogHandler);
         } catch (IOException e) {
@@ -79,16 +79,7 @@ public class SynchronizerAPI {
                 //up-to-date copy it (overwrite if needed)
                 File sourceFileFile = new File(sourceFile);
                 Path destFilePath = Paths.get(destinationFilesFolderPath.toString(), sourceFileFile.toPath().getFileName().toString());
-                boolean needToCopy = false;
-                if (!destFilePath.toFile().exists()) {
-                    needToCopy = true;
-                } else {
-                    File destFile = destFilePath.toFile();
-                    needToCopy = (sourceFileFile.lastModified() != destFile.lastModified()
-                            || Files.size(destFilePath) != Files.size(sourceFileFile.toPath()));
-                }
-
-                if (needToCopy) {
+                if (isNeedToCopy(sourceFileFile, destFilePath)) {
                     FileUtils.copyFile(sourceFileFile, destFilePath.toFile());
                 }
             }
@@ -101,13 +92,23 @@ public class SynchronizerAPI {
         }
     }
 
+    private boolean isNeedToCopy(File sourceFileFile, Path destFilePath) throws IOException {
+        if (!destFilePath.toFile().exists()) {
+            return true;
+        } else {
+            File destFile = destFilePath.toFile();
+            return (sourceFileFile.lastModified() != destFile.lastModified()
+                    || Files.size(destFilePath) != Files.size(sourceFileFile.toPath()));
+        }
+    }
+
     private Logger getRollingLogger() throws IOException {
         if (ROLLING_LOGGER == null) {
             ROLLING_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Rolling operations");
             Date date = new Date();
             DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd_hh_mm_ss");
             String strDate = dateFormat.format(date);
-            FileHandler fileLogHandler = new FileHandler("./duplicator_" + strDate + ".log");
+            FileHandler fileLogHandler = new FileHandler("./logs/duplicator_" + strDate + ".log");
             fileLogHandler.setFormatter(new SimpleFormatter());
             ROLLING_LOGGER.addHandler(fileLogHandler);
         }
