@@ -36,7 +36,7 @@ public class SynchronizerAPI {
         }
     }
 
-    public void diffCopy(List<String> sourceFolderList, String destinationFolder) {
+    public void diffCopy(List<String> sourceFolderList, List<String> sourceFileList, String destinationFolder) {
         try {
             //check for multiple identical source folders (lower level folder name can be the same => @destination it will be a problem, folders with be merged)
             Map<String, String> folderToUniqueFolderMap = getFolderMapping(sourceFolderList);
@@ -53,7 +53,7 @@ public class SynchronizerAPI {
                 File destinationFolderFile = new File(destinationFolder);
                 for (String sourceKey : sourceFolderObjectMap.keySet()) {
                     //check if file need to be copied
-                    if (needCopyFile(sourceFolderObjectMap, destinationFolderObjectMap, sourceKey, folderToUniqueFolderMap)) {
+                    if (needCopyFile(sourceFolderObjectMap, destinationFolderObjectMap, sourceKey)) {
                         try {
                             //create file object (not the file in fs)
                             File destinationFile = createDestinationFileObject(sourceFolderObjectMap, destinationFolderObjectMap, sourceKey,
@@ -70,6 +70,29 @@ public class SynchronizerAPI {
                     }
                 }
             }
+
+            Path destinationFilesFolderPath = Paths.get(destinationFolder + File.separator + "files");
+            for (String sourceFile : sourceFileList) {
+                String msg = "Processing file " + sourceFile;
+                Logger.getAnonymousLogger().log(Level.INFO, msg);
+                _MAIN_LOGGER.log(Level.INFO, msg);
+                //up-to-date copy it (overwrite if needed)
+                File sourceFileFile = new File(sourceFile);
+                Path destFilePath = Paths.get(destinationFilesFolderPath.toString(), sourceFileFile.toPath().getFileName().toString());
+                boolean needToCopy = false;
+                if (!destFilePath.toFile().exists()) {
+                    needToCopy = true;
+                } else {
+                    File destFile = destFilePath.toFile();
+                    needToCopy = (sourceFileFile.lastModified() != destFile.lastModified()
+                            || Files.size(destFilePath) != Files.size(sourceFileFile.toPath()));
+                }
+
+                if (needToCopy) {
+                    FileUtils.copyFile(sourceFileFile, destFilePath.toFile());
+                }
+            }
+
         } catch (IOException e) {
             String msgEx = new Timestamp(System.currentTimeMillis()) + " - Can't synchronize folders. Exception is " + e;
             Logger.getAnonymousLogger().log(Level.SEVERE, msgEx);
@@ -134,7 +157,7 @@ public class SynchronizerAPI {
         return folderToUniqueFolderMap;
     }
 
-    private boolean needCopyFile(HashMap<String, FileObject> sourceMap, HashMap<String, FileObject> destMap, String sourceKey, Map<String, String> folderToUniqueFolderMap) {
+    private boolean needCopyFile(HashMap<String, FileObject> sourceMap, HashMap<String, FileObject> destMap, String sourceKey) {
         //if file not in destination - copy it
         if (!destMap.containsKey(sourceKey))
             return true;
@@ -165,12 +188,12 @@ public class SynchronizerAPI {
         return getMapOfFilesInFolder(sourceFolder, false, folderToUniqueFolderMap);
     }
 
-    private HashMap<String, FileObject> getMapOfFilesInFolder(String sourceFolder, boolean includeParent, Map<String, String> folderToUniqueFolderMap) throws IOException {
+    private HashMap<String, FileObject> getMapOfFilesInFolder(String folder, boolean includeParent, Map<String, String> folderToUniqueFolderMap) throws IOException {
         HashMap<String, FileObject> diffCache = new HashMap<>();
-        File sourceRootFolder = new File(sourceFolder);
+        File sourceRootFolder = new File(folder);
         if (!sourceRootFolder.exists()) {
-            Logger.getAnonymousLogger().log(Level.SEVERE, "Folder does not exist - " + sourceFolder);
-            throw new IOException("Folder does not exist - " + sourceFolder);
+            Logger.getAnonymousLogger().log(Level.SEVERE, "Folder does not exist - " + folder);
+            throw new IOException("Folder does not exist - " + folder);
         }
         Iterator it = FileUtils.iterateFiles(sourceRootFolder, null, true);
         while(it.hasNext()) {

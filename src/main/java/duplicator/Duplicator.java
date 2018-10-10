@@ -12,10 +12,12 @@ public class Duplicator {
 
     public static void main(String[] args) {
         List<String> sourceFolderList = null;
+        List<String> sourceFileList = null;
         String destFolder = ""; 
         Settings settings = Settings.getInstance();
         if (args.length == 0) {
             sourceFolderList = settings.getList(FixedSettings.SOURCE_FOLDER);
+            sourceFileList = settings.getList(FixedSettings.SOURCE_FILE);
             destFolder = settings.get(FixedSettings.DESTINATION_FOLDER);
         }
         if (sourceFolderList == null || sourceFolderList.isEmpty()
@@ -26,11 +28,11 @@ public class Duplicator {
         }
 
         Duplicator duplicator = new Duplicator();
-        duplicator.diffCopy(sourceFolderList, destFolder);
+        duplicator.diffCopy(sourceFolderList, sourceFileList, destFolder);
     }
 
-    void diffCopy(List<String> sourceFolderList, String destFolder) {
+    void diffCopy(List<String> sourceFolderList, List<String> sourceFileList, String destFolder) {
         SynchronizerAPI synchronizerAPI = new SynchronizerAPI();
-        synchronizerAPI.diffCopy(sourceFolderList, destFolder);
+        synchronizerAPI.diffCopy(sourceFolderList, sourceFileList, destFolder);
     }
 }

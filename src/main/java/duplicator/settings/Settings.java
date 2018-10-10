@@ -30,7 +30,6 @@ public class Settings {
         FileBasedConfigurationBuilder<FileBasedConfiguration> builder =
                 new FileBasedConfigurationBuilder<FileBasedConfiguration>(PropertiesConfiguration.class)
                         .configure(params.properties()
-                                //.setFileName("settings.properties")
                                 .setFile(settingsFile)
                                 .setListDelimiterHandler(new DefaultListDelimiterHandler(',')));
         try
