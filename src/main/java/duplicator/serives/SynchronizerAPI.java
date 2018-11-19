@@ -26,7 +26,16 @@ public class SynchronizerAPI {
 
     private Logger ROLLING_LOGGER = null;
 
-    public SynchronizerAPI() {
+    private static SynchronizerAPI instance;
+
+    public static SynchronizerAPI newInstanceDefaultLog() {
+        if (instance == null) {
+            instance = new SynchronizerAPI();
+        }
+        return instance;
+    }
+
+    private SynchronizerAPI() {
         try {
             FileHandler fileLogHandler = new FileHandler("./logs/duplicator.log", true);
             fileLogHandler.setFormatter(new SimpleFormatter());
@@ -199,15 +208,12 @@ public class SynchronizerAPI {
         Iterator it = FileUtils.iterateFiles(sourceRootFolder, null, true);
         while(it.hasNext()) {
             File file = (File) it.next();
-            FileObject newFO = new FileObject();
-            newFO.setPath(file.toPath());
-            newFO.setFolder(file.isDirectory());
-            newFO.setModifTime(FileTime.fromMillis(file.lastModified()));
-            try {
-                newFO.setSize(Files.size(file.toPath()));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            FileObject newFO = new FileObject.Builder()
+                    .path(file.toPath())
+                    .isFolder(file.isDirectory())
+                    .modifTime(FileTime.fromMillis(file.lastModified()))
+                    .size(Files.size(file.toPath()))
+                    .build();
             String key = getFileRelativePathKey(sourceRootFolder, file,  includeParent, folderToUniqueFolderMap);
             diffCache.put(key, newFO);
         }

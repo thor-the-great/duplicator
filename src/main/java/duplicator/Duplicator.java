@@ -32,7 +32,7 @@ public class Duplicator {
     }
 
     void diffCopy(List<String> sourceFolderList, List<String> sourceFileList, String destFolder) {
-        SynchronizerAPI synchronizerAPI = new SynchronizerAPI();
+        SynchronizerAPI synchronizerAPI = SynchronizerAPI.newInstanceDefaultLog();
         synchronizerAPI.diffCopy(sourceFolderList, sourceFileList, destFolder);
     }
 }

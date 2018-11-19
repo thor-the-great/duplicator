@@ -9,28 +9,23 @@ public class FileObject {
     FileTime modifTime;
     Path path;
 
-    public boolean isFolder() {
-        return isFolder;
+    private FileObject(Builder builder) {
+        isFolder = builder.isFolder;
+        size = builder.size;
+        modifTime = builder.modifTime;
+        path = builder.path;
     }
 
-    public void setFolder(boolean folder) {
-        isFolder = folder;
+    public boolean isFolder() {
+        return isFolder;
     }
 
     public long getSize() {
         return size;
     }
 
-    public void setSize(long size) {
-        this.size = size;
-    }
-
     public FileTime getModifTime() {
         return modifTime;
-    }
-
-    public void setModifTime(FileTime modifTime) {
-        this.modifTime = modifTime;
     }
 
     public Path getPath() {
@@ -39,5 +34,36 @@ public class FileObject {
 
     public void setPath(Path path) {
         this.path = path;
+    }
+
+    public static class Builder {
+        boolean isFolder;
+        long size;
+        FileTime modifTime;
+        Path path;
+
+        public Builder isFolder(boolean folder) {
+            this.isFolder = folder;
+            return this;
+        }
+
+        public Builder size(long size) {
+            this.size = size;
+            return this;
+        }
+
+        public Builder modifTime(FileTime modifTime) {
+            this.modifTime = modifTime;
+            return this;
+        }
+
+        public Builder path(Path path) {
+            this.path = path;
+            return this;
+        }
+
+        public FileObject build() {
+            return new FileObject(this);
+        }
     }
 }
