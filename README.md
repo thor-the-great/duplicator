@@ -1,4 +1,4 @@
-Duplicator is a comand line tool that supports copying of folders and files from source to destination. Initial use case is automated creation of backup copies. For instance, you can backup some data with complex structure to the cloud storage folder, like Google Drive or MS One Drive, and you don't have to change structure of your data or copy it manually.
+Duplicator is a command line tool that supports copying of folders and files from source to destination. Initial use case is automated creation of backup copies. For instance, you can backup some data with complex structure to the cloud storage folder, like Google Drive or MS One Drive, and you don't have to change structure of your data or copy it manually.
 
 Supported features (as for time of writting):
 
