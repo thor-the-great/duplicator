@@ -4,6 +4,8 @@ import duplicator.pojo.FileObject;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,6 +19,8 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class SynchronizerAPI {
 
@@ -45,7 +49,7 @@ public class SynchronizerAPI {
         }
     }
 
-    public void diffCopy(List<String> sourceFolderList, List<String> sourceFileList, String destinationFolder) {
+    public void diffCopy(List<String> sourceFolderList, List<String> sourceFileList, List<String> sourceFileZipList, String destinationFolder) {
         try {
             //check for multiple identical source folders (lower level folder name can be the same => @destination it will be a problem, folders with be merged)
             Map<String, String> folderToUniqueFolderMap = getFolderMapping(sourceFolderList);
@@ -91,6 +95,34 @@ public class SynchronizerAPI {
                 if (isNeedToCopy(sourceFileFile, destFilePath)) {
                     FileUtils.copyFile(sourceFileFile, destFilePath.toFile());
                 }
+            }
+
+            for (String sourceFile : sourceFileZipList) {
+                String msg = "Processing file with zip option " + sourceFile;
+                Logger.getAnonymousLogger().log(Level.INFO, msg);
+                _MAIN_LOGGER.log(Level.INFO, msg);
+                //up-to-date copy it (overwrite if needed)
+                File sourceFileFile = new File(sourceFile);
+                Path sourceFilePath = sourceFileFile.toPath();
+
+                File outputSourceZipFile = new File(sourceFile + ".zip");
+                ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(outputSourceZipFile));
+                ZipEntry zipEntry = new ZipEntry(sourceFilePath.getFileName().toString());
+                zos.putNextEntry(zipEntry);
+
+                FileInputStream in = new FileInputStream(sourceFile);
+                int len;
+                byte[] buffer = new byte[1024];
+                while ((len = in.read(buffer)) > 0) {
+                    zos.write(buffer, 0, len);
+                }
+                in.close();
+                zos.closeEntry();
+                zos.close();
+
+                Path destFilePath = Paths.get(destinationFilesFolderPath.toString(), outputSourceZipFile.toPath().getFileName().toString());
+                FileUtils.copyFile(outputSourceZipFile, destFilePath.toFile());
+                FileUtils.forceDelete(outputSourceZipFile);
             }
 
         } catch (IOException e) {
