@@ -1,7 +1,8 @@
 package duplicator.serives;
 
-import duplicator.DLogger;
-import duplicator.LOGGER_TYPE;
+import com.sun.org.apache.bcel.internal.generic.DLOAD;
+import duplicator.log.DLogger;
+import duplicator.log.LOGGER_TYPE;
 import duplicator.pojo.FileObject;
 import org.apache.commons.io.FileUtils;
 
@@ -24,10 +25,7 @@ public class SynchronizerAPI {
 
     final static String _ILLEGAL_CHARS_IN_FILENAME = "[\\\\/:*?\"<>|]";
 
-    //private final static Logger _MAIN_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Main events");
     private final static DLogger _MAIN_LOGGER = DLogger.getInstance(SynchronizerAPI.class.getName() + " Main events", LOGGER_TYPE.MAIN);
-
-    //private DLogger ROLLING_LOGGER = null;
 
     private static SynchronizerAPI instance;
 
@@ -113,6 +111,8 @@ public class SynchronizerAPI {
                 FileUtils.forceDelete(outputSourceZipFile);
             }
 
+            //DLogger.shutdown();
+
         } catch (IOException e) {
             String msgEx = new Timestamp(System.currentTimeMillis()) + " - Can't synchronize folders. Exception is " + e;
             DLogger.getAnonymousLogger().log(Level.SEVERE, msgEx);
@@ -131,31 +131,8 @@ public class SynchronizerAPI {
         }
     }
 
-    /*private Logger getRollingLogger() throws IOException {
-        if (ROLLING_LOGGER == null) {
-            ROLLING_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Rolling operations");
-            Date date = new Date();
-            DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd_hh_mm_ss");
-            String strDate = dateFormat.format(date);
-            FileHandler fileLogHandler = new FileHandler("./logs/duplicator_" + strDate + ".log");
-            fileLogHandler.setFormatter(new SimpleFormatter());
-            ROLLING_LOGGER.addHandler(fileLogHandler);
-        }
-        return ROLLING_LOGGER;
-    }*/
     private DLogger getRollingLogger() throws IOException {
         return DLogger.getInstance(SynchronizerAPI.class.getName() + " Rolling operations", LOGGER_TYPE.ROLLING);
-
-        /*if (ROLLING_LOGGER == null) {
-            ROLLING_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Rolling operations");
-            Date date = new Date();
-            DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd_hh_mm_ss");
-            String strDate = dateFormat.format(date);
-            FileHandler fileLogHandler = new FileHandler("./logs/duplicator_" + strDate + ".log");
-            fileLogHandler.setFormatter(new SimpleFormatter());
-            ROLLING_LOGGER.addHandler(fileLogHandler);
-        }
-        return ROLLING_LOGGER;*/
     }
 
     /**

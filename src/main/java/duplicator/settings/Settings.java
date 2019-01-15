@@ -1,6 +1,6 @@
 package duplicator.settings;
 
-import duplicator.DLogger;
+import duplicator.log.DLogger;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.FileBasedConfiguration;
 import org.apache.commons.configuration2.PropertiesConfiguration;
