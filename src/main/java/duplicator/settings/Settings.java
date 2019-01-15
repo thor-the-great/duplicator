@@ -1,5 +1,6 @@
 package duplicator.settings;
 
+import duplicator.DLogger;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.FileBasedConfiguration;
 import org.apache.commons.configuration2.PropertiesConfiguration;
@@ -13,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 
 public class Settings {
@@ -23,7 +23,7 @@ public class Settings {
     private Settings() {
         File settingsFile = new File("./settings.properties");
         if (!settingsFile.exists()) {
-            Logger.getAnonymousLogger().log(Level.SEVERE, "Can't find file with main settings, exiting");
+            DLogger.getAnonymousLogger().log(Level.SEVERE, "Can't find file with main settings, exiting");
             System.exit(1);
         }
         Parameters params = new Parameters();

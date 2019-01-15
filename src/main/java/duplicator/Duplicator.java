@@ -6,7 +6,6 @@ import duplicator.settings.Settings;
 
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class Duplicator {
 
@@ -24,7 +23,7 @@ public class Duplicator {
         }
         if (sourceFolderList == null || sourceFolderList.isEmpty()
                 || destFolder == null || destFolder.isEmpty()) {
-            Logger.getAnonymousLogger().log(Level.SEVERE, "Exiting, one of paths is empty. Source folder is = "
+            DLogger.getAnonymousLogger().log(Level.SEVERE, "Exiting, one of paths is empty. Source folder is = "
                     + sourceFolderList + ", destination folder is " + destFolder);
             System.exit(1);
         }

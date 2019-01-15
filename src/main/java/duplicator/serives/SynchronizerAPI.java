@@ -1,5 +1,7 @@
 package duplicator.serives;
 
+import duplicator.DLogger;
+import duplicator.LOGGER_TYPE;
 import duplicator.pojo.FileObject;
 import org.apache.commons.io.FileUtils;
 
@@ -12,13 +14,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.sql.Timestamp;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.logging.FileHandler;
 import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
+//import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -26,9 +24,10 @@ public class SynchronizerAPI {
 
     final static String _ILLEGAL_CHARS_IN_FILENAME = "[\\\\/:*?\"<>|]";
 
-    private final static Logger _MAIN_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Main events");
+    //private final static Logger _MAIN_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Main events");
+    private final static DLogger _MAIN_LOGGER = DLogger.getInstance(SynchronizerAPI.class.getName() + " Main events", LOGGER_TYPE.MAIN);
 
-    private Logger ROLLING_LOGGER = null;
+    //private DLogger ROLLING_LOGGER = null;
 
     private static SynchronizerAPI instance;
 
@@ -39,26 +38,15 @@ public class SynchronizerAPI {
         return instance;
     }
 
-    private SynchronizerAPI() {
-        try {
-            FileHandler fileLogHandler = new FileHandler("./logs/duplicator.log", true);
-            fileLogHandler.setFormatter(new SimpleFormatter());
-            _MAIN_LOGGER.addHandler(fileLogHandler);
-        } catch (IOException e) {
-            Logger.getAnonymousLogger().log(Level.SEVERE, "Can't create file handler for logger. Exception is " + e);
-        }
-    }
-
     public void diffCopy(List<String> sourceFolderList, List<String> sourceFileList, List<String> sourceFileZipList, String destinationFolder) {
         try {
             //check for multiple identical source folders (lower level folder name can be the same => @destination it will be a problem, folders with be merged)
             Map<String, String> folderToUniqueFolderMap = getFolderMapping(sourceFolderList);
             HashMap<String, FileObject> destinationFolderObjectMap = getMapOfFilesInFolder(destinationFolder, folderToUniqueFolderMap);
-            ROLLING_LOGGER = null;
             for (String sourceFolder : sourceFolderList) {
                 HashMap<String, FileObject> sourceFolderObjectMap = getMapOfFilesInFolder(sourceFolder, true, folderToUniqueFolderMap);
                 String msg = "Processing folder " + sourceFolder + " with " + sourceFolderObjectMap.size() + " object(s)";
-                Logger.getAnonymousLogger().log(Level.INFO, msg);
+                DLogger.getAnonymousLogger().log(Level.INFO, msg);
                 _MAIN_LOGGER.log(Level.INFO, msg);
                 //iterate over source folder content, check if the same object in destination, if it's missing on not
                 //up-to-date copy it (overwrite if needed)
@@ -75,7 +63,7 @@ public class SynchronizerAPI {
                             FileUtils.copyFile(sourceFolderObjectMap.get(sourceKey).getPath().toFile(), destinationFile);
                         } catch (IOException e) {
                             String msg1 = new Timestamp(System.currentTimeMillis()) + " - Exception while copying file " + sourceKey + ". Exception is " + e;
-                            Logger.getAnonymousLogger().log(Level.SEVERE, msg1);
+                            DLogger.getAnonymousLogger().log(Level.SEVERE, msg1);
                             _MAIN_LOGGER.log(Level.SEVERE, msg1);
                         }
                         String msgCopied = "Copied file " + sourceKey;
@@ -87,7 +75,7 @@ public class SynchronizerAPI {
             Path destinationFilesFolderPath = Paths.get(destinationFolder + File.separator + "files");
             for (String sourceFile : sourceFileList) {
                 String msg = "Processing file " + sourceFile;
-                Logger.getAnonymousLogger().log(Level.INFO, msg);
+                DLogger.getAnonymousLogger().log(Level.INFO, msg);
                 _MAIN_LOGGER.log(Level.INFO, msg);
                 //up-to-date copy it (overwrite if needed)
                 File sourceFileFile = new File(sourceFile);
@@ -99,7 +87,7 @@ public class SynchronizerAPI {
 
             for (String sourceFile : sourceFileZipList) {
                 String msg = "Processing file with zip option " + sourceFile;
-                Logger.getAnonymousLogger().log(Level.INFO, msg);
+                DLogger.getAnonymousLogger().log(Level.INFO, msg);
                 _MAIN_LOGGER.log(Level.INFO, msg);
                 //up-to-date copy it (overwrite if needed)
                 File sourceFileFile = new File(sourceFile);
@@ -127,7 +115,7 @@ public class SynchronizerAPI {
 
         } catch (IOException e) {
             String msgEx = new Timestamp(System.currentTimeMillis()) + " - Can't synchronize folders. Exception is " + e;
-            Logger.getAnonymousLogger().log(Level.SEVERE, msgEx);
+            DLogger.getAnonymousLogger().log(Level.SEVERE, msgEx);
             _MAIN_LOGGER.log(Level.SEVERE, msgEx);
             System.exit(1);
         }
@@ -143,7 +131,7 @@ public class SynchronizerAPI {
         }
     }
 
-    private Logger getRollingLogger() throws IOException {
+    /*private Logger getRollingLogger() throws IOException {
         if (ROLLING_LOGGER == null) {
             ROLLING_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Rolling operations");
             Date date = new Date();
@@ -154,6 +142,20 @@ public class SynchronizerAPI {
             ROLLING_LOGGER.addHandler(fileLogHandler);
         }
         return ROLLING_LOGGER;
+    }*/
+    private DLogger getRollingLogger() throws IOException {
+        return DLogger.getInstance(SynchronizerAPI.class.getName() + " Rolling operations", LOGGER_TYPE.ROLLING);
+
+        /*if (ROLLING_LOGGER == null) {
+            ROLLING_LOGGER = Logger.getLogger(SynchronizerAPI.class.getName() + " Rolling operations");
+            Date date = new Date();
+            DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd_hh_mm_ss");
+            String strDate = dateFormat.format(date);
+            FileHandler fileLogHandler = new FileHandler("./logs/duplicator_" + strDate + ".log");
+            fileLogHandler.setFormatter(new SimpleFormatter());
+            ROLLING_LOGGER.addHandler(fileLogHandler);
+        }
+        return ROLLING_LOGGER;*/
     }
 
     /**
@@ -234,7 +236,7 @@ public class SynchronizerAPI {
         HashMap<String, FileObject> diffCache = new HashMap<>();
         File sourceRootFolder = new File(folder);
         if (!sourceRootFolder.exists()) {
-            Logger.getAnonymousLogger().log(Level.SEVERE, "Folder does not exist - " + folder);
+            DLogger.getAnonymousLogger().log(Level.SEVERE, "Folder does not exist - " + folder);
             throw new IOException("Folder does not exist - " + folder);
         }
         Iterator it = FileUtils.iterateFiles(sourceRootFolder, null, true);
