@@ -7,7 +7,6 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.concurrent.*;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -15,14 +14,15 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
 public class DLogger {
-    static private Map<String, DLogger> instances = new WeakHashMap<>();
-    private final ExecutorService exec = Executors.newFixedThreadPool(2);
+    static private Map<String, DLogger> instances = new ConcurrentHashMap<>();
+    private ExecutorService exec;
     private Logger logger;
     private final BlockingQueue<Message> queue;
     //private final LoggerThread consumer;
-    int CAPACITY = 100;
+    int CAPACITY = 5000;
 
     private DLogger(String name, LOGGER_TYPE type) {
+        int NUM_OF_EXECUTORS = 5;
         if (type == LOGGER_TYPE.ANONYMOUS) {
             logger = Logger.getAnonymousLogger();
         } else if (type == LOGGER_TYPE.MAIN) {
@@ -35,6 +35,7 @@ public class DLogger {
             }
             fileLogHandler.setFormatter(new SimpleFormatter());
             logger.addHandler(fileLogHandler);
+            NUM_OF_EXECUTORS = 20;
         } else if (type == LOGGER_TYPE.ROLLING) {
             logger = Logger.getLogger(name);
             Date date = new Date();
@@ -48,9 +49,10 @@ public class DLogger {
             }
             fileLogHandler.setFormatter(new SimpleFormatter());
             logger.addHandler(fileLogHandler);
+            NUM_OF_EXECUTORS = 20;
         }
         queue = new LinkedBlockingDeque(CAPACITY);
-
+        exec = Executors.newFixedThreadPool(NUM_OF_EXECUTORS);
         exec.submit(()-> {
             try {
                 while (true) {
@@ -91,6 +93,7 @@ public class DLogger {
     }
 
     public static void shutdown() {
+        System.err.println("Shuting down logger");
         for(String key : instances.keySet()) {
             DLogger logger = instances.get(key);
             try {
