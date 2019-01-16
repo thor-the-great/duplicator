@@ -40,8 +40,11 @@ public class SynchronizerAPI {
     public void diffCopy(List<String> sourceFolderList, List<String> sourceFileList, List<String> sourceFileZipList, String destinationFolder) {
         try {
             //check for multiple identical source folders (lower level folder name can be the same => @destination it will be a problem, folders with be merged)
+            long start = System.currentTimeMillis();
             Map<String, String> folderToUniqueFolderMap = getFolderMapping(sourceFolderList);
             HashMap<String, FileObject> destinationFolderObjectMap = getMapOfFilesInFolder(destinationFolder, folderToUniqueFolderMap);
+            long elapsed = System.currentTimeMillis() - start;
+            DLogger.getAnonymousLogger().log(Level.SEVERE, "Time elapsed for mapping : " + elapsed + " ms");
             ExecutorService exec = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() + 1);
             getRollingLogger();
             for (String sourceFolder : sourceFolderList) {
@@ -53,6 +56,19 @@ public class SynchronizerAPI {
                 //up-to-date copy it (overwrite if needed)
                 File sourceFolderFile = new File(sourceFolder);
                 File destinationFolderFile = new File(destinationFolder);
+                Set<File> destFolders = new HashSet();
+                for (String sourceKey : sourceFolderObjectMap.keySet()) {
+                    File destinationFile = createDestinationFileObject(sourceFolderObjectMap, destinationFolderObjectMap, sourceKey,
+                            sourceFolderFile, destinationFolderFile, folderToUniqueFolderMap);
+                    destFolders.add(destinationFile.getParentFile());
+                }
+                for(File parentFolder : destFolders) {
+                    if (!parentFolder.exists()) {
+                        parentFolder.mkdirs();
+                        String message = "Created folder " + parentFolder.toString();
+                        getRollingLogger().log(Level.INFO, message);
+                    }
+                }
                 for (String sourceKey : sourceFolderObjectMap.keySet()) {
                     exec.execute(()->{
                         //check if file need to be copied
