@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -42,13 +43,18 @@ public class SynchronizerAPI {
             //check for multiple identical source folders (lower level folder name can be the same => @destination it will be a problem, folders with be merged)
             long start = System.currentTimeMillis();
             Map<String, String> folderToUniqueFolderMap = getFolderMapping(sourceFolderList);
-            HashMap<String, FileObject> destinationFolderObjectMap = getMapOfFilesInFolder(destinationFolder, folderToUniqueFolderMap);
             long elapsed = System.currentTimeMillis() - start;
-            DLogger.getAnonymousLogger().log(Level.SEVERE, "Time elapsed for mapping : " + elapsed + " ms");
+            DLogger.getAnonymousLogger().log(Level.INFO, "Time elapsed for folder mapping : " + elapsed + " ms");
+
+            start = System.currentTimeMillis();
+            Map<String, FileObject> destinationFolderObjectMap = getMapOfFilesInFolder(destinationFolder, folderToUniqueFolderMap);
+            elapsed = System.currentTimeMillis() - start;
+            DLogger.getAnonymousLogger().log(Level.INFO, "Time elapsed for mapping files in folder : " + elapsed + " ms");
+
             ExecutorService exec = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() + 1);
             getRollingLogger();
             for (String sourceFolder : sourceFolderList) {
-                HashMap<String, FileObject> sourceFolderObjectMap = getMapOfFilesInFolder(sourceFolder, true, folderToUniqueFolderMap);
+                Map<String, FileObject> sourceFolderObjectMap = getMapOfFilesInFolder(sourceFolder, true, folderToUniqueFolderMap);
                 String msg = "Processing folder " + sourceFolder + " with " + sourceFolderObjectMap.size() + " object(s)";
                 DLogger.getAnonymousLogger().log(Level.INFO, msg);
                 _MAIN_LOGGER.log(Level.INFO, msg);
@@ -56,19 +62,7 @@ public class SynchronizerAPI {
                 //up-to-date copy it (overwrite if needed)
                 File sourceFolderFile = new File(sourceFolder);
                 File destinationFolderFile = new File(destinationFolder);
-                Set<File> destFolders = new HashSet();
-                for (String sourceKey : sourceFolderObjectMap.keySet()) {
-                    File destinationFile = createDestinationFileObject(sourceFolderObjectMap, destinationFolderObjectMap, sourceKey,
-                            sourceFolderFile, destinationFolderFile, folderToUniqueFolderMap);
-                    destFolders.add(destinationFile.getParentFile());
-                }
-                for(File parentFolder : destFolders) {
-                    if (!parentFolder.exists()) {
-                        parentFolder.mkdirs();
-                        String message = "Created folder " + parentFolder.toString();
-                        getRollingLogger().log(Level.INFO, message);
-                    }
-                }
+                createDestinationFolders(folderToUniqueFolderMap, destinationFolderObjectMap, sourceFolderObjectMap, sourceFolderFile, destinationFolderFile);
                 for (String sourceKey : sourceFolderObjectMap.keySet()) {
                     exec.execute(()->{
                         //check if file need to be copied
@@ -138,17 +132,31 @@ public class SynchronizerAPI {
                 FileUtils.copyFile(outputSourceZipFile, destFilePath.toFile());
                 FileUtils.forceDelete(outputSourceZipFile);
             }
-        } catch (IOException e) {
-            String msgEx = new Timestamp(System.currentTimeMillis()) + " - Can't synchronize folders. Exception is " + e;
-            DLogger.getAnonymousLogger().log(Level.SEVERE, msgEx);
-            _MAIN_LOGGER.log(Level.SEVERE, msgEx);
-            System.exit(1);
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             String msgEx = new Timestamp(System.currentTimeMillis()) + " - Can't synchronize folders. Exception is " + e;
             DLogger.getAnonymousLogger().log(Level.SEVERE, msgEx);
             _MAIN_LOGGER.log(Level.SEVERE, msgEx);
             System.exit(1);
         }
+    }
+
+    private void createDestinationFolders(Map<String, String> folderToUniqueFolderMap, Map<String, FileObject> destinationFolderObjectMap, Map<String, FileObject> sourceFolderObjectMap, File sourceFolderFile, File destinationFolderFile) throws IOException {
+        long start = System.currentTimeMillis();
+        Set<File> destFolders = new HashSet();
+        for (String sourceKey : sourceFolderObjectMap.keySet()) {
+            File destinationFile = createDestinationFileObject(sourceFolderObjectMap, destinationFolderObjectMap, sourceKey,
+                    sourceFolderFile, destinationFolderFile, folderToUniqueFolderMap);
+            destFolders.add(destinationFile.getParentFile());
+        }
+        for(File parentFolder : destFolders) {
+            if (!parentFolder.exists()) {
+                parentFolder.mkdirs();
+                String message = "Created folder " + parentFolder.toString();
+                getRollingLogger().log(Level.INFO, message);
+            }
+        }
+        long elapsed = System.currentTimeMillis() - start;
+        DLogger.getAnonymousLogger().log(Level.INFO, "Time elapsed to create destination folders : " + elapsed + " ms");
     }
 
     private boolean isNeedToCopy(File sourceFileFile, Path destFilePath) throws IOException {
@@ -208,7 +216,7 @@ public class SynchronizerAPI {
         return folderToUniqueFolderMap;
     }
 
-    private boolean needCopyFile(HashMap<String, FileObject> sourceMap, HashMap<String, FileObject> destMap, String sourceKey) {
+    private boolean needCopyFile(Map<String, FileObject> sourceMap, Map<String, FileObject> destMap, String sourceKey) {
         //if file not in destination - copy it
         if (!destMap.containsKey(sourceKey))
             return true;
@@ -222,7 +230,7 @@ public class SynchronizerAPI {
         return false;
     }
 
-    File createDestinationFileObject(HashMap<String, FileObject> sourceMap, HashMap<String, FileObject> destMap,
+    File createDestinationFileObject(Map<String, FileObject> sourceMap, Map<String, FileObject> destMap,
                                      String sourceKey, File sourceFolderFile, File destinationFolderFile, Map<String, String> folderToUniqueFolderMap) {
         if (destMap.containsKey(sourceKey))
             return destMap.get(sourceKey).getPath().toFile();
@@ -235,29 +243,40 @@ public class SynchronizerAPI {
         }
     }
 
-    private HashMap<String, FileObject> getMapOfFilesInFolder(String sourceFolder, Map<String, String> folderToUniqueFolderMap) throws IOException {
+    private Map<String, FileObject> getMapOfFilesInFolder(String sourceFolder, Map<String, String> folderToUniqueFolderMap) throws IOException, InterruptedException {
         return getMapOfFilesInFolder(sourceFolder, false, folderToUniqueFolderMap);
     }
 
-    private HashMap<String, FileObject> getMapOfFilesInFolder(String folder, boolean includeParent, Map<String, String> folderToUniqueFolderMap) throws IOException {
-        HashMap<String, FileObject> diffCache = new HashMap<>();
+    private Map<String, FileObject> getMapOfFilesInFolder(String folder, boolean includeParent, Map<String, String> folderToUniqueFolderMap) throws IOException, InterruptedException {
+        Map<String, FileObject> diffCache = new HashMap<>();
         File sourceRootFolder = new File(folder);
         if (!sourceRootFolder.exists()) {
             DLogger.getAnonymousLogger().log(Level.SEVERE, "Folder does not exist - " + folder);
             throw new IOException("Folder does not exist - " + folder);
         }
-        Iterator it = FileUtils.iterateFiles(sourceRootFolder, null, true);
-        while(it.hasNext()) {
-            File file = (File) it.next();
-            FileObject newFO = new FileObject.Builder()
-                    .path(file.toPath())
-                    .isFolder(file.isDirectory())
-                    .modifTime(FileTime.fromMillis(file.lastModified()))
-                    .size(Files.size(file.toPath()))
-                    .build();
-            String key = getFileRelativePathKey(sourceRootFolder, file,  includeParent, folderToUniqueFolderMap);
-            diffCache.put(key, newFO);
+        Iterator<File> it = FileUtils.iterateFiles(sourceRootFolder, null, true);
+        ExecutorService exec = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2 + 1);
+        while (it.hasNext()) {
+            File file = it.next();
+            exec.execute(() -> {
+                try {
+                    FileObject newFO = new FileObject.Builder()
+                            .path(file.toPath())
+                            .isFolder(file.isDirectory())
+                            .modifTime(FileTime.fromMillis(file.lastModified()))
+                            .size(Files.size(file.toPath()))
+                            .build();
+                    String key = getFileRelativePathKey(sourceRootFolder, file, includeParent, folderToUniqueFolderMap);
+                    diffCache.put(key, newFO);
+                } catch (IOException ex) {
+                    String msgEx = new Timestamp(System.currentTimeMillis()) + " - Can't read the file. Exception is " + ex;
+                    DLogger.getAnonymousLogger().log(Level.SEVERE, msgEx);
+                    _MAIN_LOGGER.log(Level.SEVERE, msgEx);
+                }
+            });
         }
+        exec.shutdown();
+        exec.awaitTermination(5, TimeUnit.MINUTES);
         return diffCache;
     }
 
