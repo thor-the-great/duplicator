@@ -1,6 +1,5 @@
 package duplicator;
 
-import com.sun.org.apache.bcel.internal.generic.DLOAD;
 import duplicator.log.DLogger;
 import duplicator.serives.SynchronizerAPI;
 import duplicator.settings.FixedSettings;
