@@ -9,6 +9,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.Channel;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,7 +21,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -92,6 +94,7 @@ public class SynchronizerAPI {
             }
             exec.shutdown();
             exec.awaitTermination(5, TimeUnit.MINUTES);
+
             Path destinationFilesFolderPath = Paths.get(destinationFolder + File.separator + "files");
             for (String sourceFile : sourceFileList) {
                 String msg = "Processing file " + sourceFile;
@@ -99,6 +102,7 @@ public class SynchronizerAPI {
                 _MAIN_LOGGER.log(Level.INFO, msg);
                 //up-to-date copy it (overwrite if needed)
                 File sourceFileFile = new File(sourceFile);
+
                 Path destFilePath = Paths.get(destinationFilesFolderPath.toString(), sourceFileFile.toPath().getFileName().toString());
                 if (isNeedToCopy(sourceFileFile, destFilePath)) {
                     FileUtils.copyFile(sourceFileFile, destFilePath.toFile());
@@ -111,6 +115,7 @@ public class SynchronizerAPI {
                 _MAIN_LOGGER.log(Level.INFO, msg);
                 //up-to-date copy it (overwrite if needed)
                 File sourceFileFile = new File(sourceFile);
+
                 Path sourceFilePath = sourceFileFile.toPath();
 
                 File outputSourceZipFile = new File(sourceFile + ".zip");
@@ -119,6 +124,14 @@ public class SynchronizerAPI {
                 zos.putNextEntry(zipEntry);
 
                 FileInputStream in = new FileInputStream(sourceFile);
+                try {
+                    in.getChannel().tryLock();
+                } catch (Exception ex) {
+                    msg = "Skip file because it's locked " + sourceFile + ". Exception is " + ex;
+                    DLogger.getAnonymousLogger().log(Level.INFO, msg);
+                    _MAIN_LOGGER.log(Level.INFO, msg);
+                    continue;
+                }
                 int len;
                 byte[] buffer = new byte[1024];
                 while ((len = in.read(buffer)) > 0) {
