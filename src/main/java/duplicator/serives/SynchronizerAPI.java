@@ -237,7 +237,7 @@ public class SynchronizerAPI {
         FileObject sourceFO = sourceMap.get(sourceKey);
         FileObject destinationFO = destMap.get(sourceKey);
         if ((sourceFO.getSize() != destinationFO.getSize())
-                || (sourceFO.getModifTime().compareTo(destinationFO.getModifTime()) != 0))
+                || (destinationFO.getModifTime() == null || sourceFO.getModifTime().compareTo(destinationFO.getModifTime()) != 0))
             return true;
         //fallback is not to copy
         return false;
